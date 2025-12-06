@@ -1,25 +1,28 @@
 #  🛒 Entrega final – Figuras de Anime
 
-Este proyecto es una aplicación en Node.js que permite gestionar productos (figuras de anime) utilizando distintos métodos HTTP (GET, POST y DELETE) desde la terminal.
+Este proyecto es una API REST creada en Node.js, utilizando Express, Firestore como base de datos, JWT para autenticación y CORS habilitado.
+Toda la interacción se realiza desde Postman, donde podés:
 
-Los productos fueron agregados manualmente desde Postman, y el sistema cuenta con un login que genera un token. Ese token se guarda en una variable para reutilizarlo automáticamente en los siguientes requests (crear, consultar y eliminar productos).
+- Hacer login y generar un token JWT
+- Actualizar ese token automáticamente en el resto de los request gracias a una variable global
+- Crear productos
+- Eliminar productos
+- Obtener todos los productos
+- Obtener un producto por ID
 
-- 📌 Como base de datos se utilizó Firestore (Firebase).
-- 📌 El proyecto está deployado en Vercel.
-- 📌 Para la entrega se usaron ejemplos de figuras de Dragon Ball, aunque el sistema es totalmente genérico para cualquier figura de anime.
+Además, al tener el proyecto desplegado en Vercel, cada request impacta directamente en la base de datos online, y todos los logs pueden verse en la terminal local.
 
 ---
 
 ## 🚀 Tecnologías utilizadas
-- [Node.js](https://nodejs.org/)
-- Express (framework para construir el servidor)
-- CORS (control de acceso entre orígenes)
-- jsonwebtoken (gestión de autenticación y tokens)
-- Fetch API
+- Node.js + Express
+- Firestore (Google Firebase)
+- jsonwebtoken (JWT)
+- CORS
+- Postman (variables de entorno, scripts de test, manejo automático del token)
+- Vercel (deploy)
 - JavaScript (ES6+)
 - Google Firestore (base de datos NoSQL)
-- Vercel (hosting / serverless)
-- Postman (para pruebas e inserción inicial de productos)
 
 ---
 
@@ -28,7 +31,7 @@ Los productos fueron agregados manualmente desde Postman, y el sistema cuenta co
 1. Cloná este repositorio:
    ```bash
    git clone https://github.com/tu-usuario/PF-FigurasAnime.git
-   cd PE
+   cd PF-FigurasAnime
    ```
 
 2. Instalá las dependencias:
@@ -36,69 +39,151 @@ Los productos fueron agregados manualmente desde Postman, y el sistema cuenta co
    npm install
    ```
 3. Ejecutá los comandos desde la terminal:
+   ```bash
+   npm start
+   ```
+---
 
-
-🔍 Consultar productos
+## 🌐 Uso desde Postman
 📌 `Ejemplos` de uso
-   - Obtener todos los productos
+
+🔐 Autenticación – Login con JWT
       ```bash
-      npm run start GET products
+      POST {{base_url}}/api/login
       ```
+- El response devuelve un token JWT.
+- En Postman configuraste un script de test que guarda ese token automáticamente:
+            ```bash
+      pm.environment.set("tokelogin", pm.response.json().token);
+      ```    
+- Ese token se usa en todos los demás requests:
+        ```bash
+      Authorization: Bearer {{tokenlogin}}
+      ```
+   - Toda la API se prueba desde Postman. Su URL base está configurada como variable de entorno, por ejemplo:
    - Obtener un producto específico (por ID)
       ```bash
-      npm run start GET products/8
+      {{base_url}}/api/products/:id
       ```
-➕ Crear un nuevo producto
-   ```bash
-   npm run start POST products "Remera turbo" 100 "remeritas"
-   ```
-      📌 Parámetros:
-         title: nombre del producto
-         price: precio del producto
-         category: categoría
-     
-      
-❌ Eliminar un producto
-   ```bash
-   npm run start DELETE products/6
-   ```
+      Y corresponde al deploy de Vercel, lo cual te permite ver en la consola cómo impactan los cambios en tiempo real.
 
 ---
+
+## 📦 Endpoints de Productos
+     
+  - 🔍 Obtener todos los productos  
+          ```
+        GET {{base_url}}/api/products
+           ```
+     
+   -  🔍 Obtener producto por ID
+           ```
+          GET {{base_url}}/api/products/:id
+            ```
+  - ➕ Crear un nuevo producto
+     Body (raw JSON):
+    ```
+      📌 Parámetros:
+            {
+                "nombre": nombre del producto,
+                "categoria": categoria del producto,
+                "precio": precio del producto,
+                "img": imagen del producto,
+                "descripcion": descripción del producto           
+            }     
+      
+   - ❌ Eliminar un producto
+      ```bash
+      DELETE {{base_url}}/api/products/:id
+      ```
+
+---
+
+## 🧠 Servicios (services)
+Parte del backend utiliza servicios como los siguientes:
+```
+import {agregarProducto, eliminarProducto, obtenerProducto, obtenerProductos} from "../models/products.models.js";
+```
+
+---
+ ## 🚀 Deploy
+
+El backend está desplegado en Vercel, por lo que la API funciona con endpoints como:
+```
+https://pf-figuras-anime.vercel.app/
+```
 
 🔄 Diagrama de flujo de comandos
 ```bash
-┌────────────────┐
-│ Ingreso comando│
-│ npm run start  │
-│  MÉTODO PATH   │
-└───────┬────────┘
-        │
-        ▼
- ┌─────────────┐
- │ ¿Es GET?    │─── Sí ──► products ─► ObtenerProductos()
- └───────┬─────┘
-         │No
-         ▼
- ┌─────────────┐
- │ ¿Es POST?   │─── Sí ──► products + datos ─► agregarProducto()
- └───────┬─────┘
-         │No
-         ▼
- ┌─────────────┐
- │ ¿Es DELETE? │─── Sí ──► products/<id> ─► eliminarProducto()
- └───────┬─────┘
-         │No
-         ▼
-     ❌ Comando inválido
+                           ┌───────────────────────┐
+                           │      Ingreso API      │
+                           │   (Request Postman)   │
+                           └───────────┬───────────┘
+                                       │
+                                       ▼
+                         ┌───────────────────────────┐
+                         │ ¿El request tiene token?  │
+                         │ (login)                   │
+                         └───────────┬───────────────┘
+                                     │Sí
+                                     ▼
+                         ┌───────────────────────────┐
+                         │ Validar JWT (middleware)  │
+                         └───────────┬───────────────┘
+                                     │OK
+                                     ▼
+                     ┌────────────────────────────────────┐
+                     │        Selección de endpoint       │
+                     └───────────────┬────────────────────┘
+                                     │
+      ┌──────────────────────────────┼────────────────────────────────┐
+      ▼                              ▼                                ▼
+┌────────────┐               ┌──────────────┐                 ┌────────────────┐
+│  GET /     │               │ POST /       │                 │ DELETE /:id    │
+│ products   │               │ products     │                 │ products/:id   │
+└─────┬──────┘               └──────┬───────┘                 └───────┬────────┘
+      │                              │                                 │
+      ▼                              ▼                                 ▼
+┌──────────────┐       ┌────────────────────────┐       ┌──────────────────────────┐
+│ obtener      │       │ agregarProducto()      │       │ eliminarProducto(id)     │
+│ Productos()  │       └───────────┬────────────┘       └──────────┬───────────────┘
+└──────┬───────┘                   │                                 │
+       │                            ▼                                 ▼
+       ▼                  ┌─────────────────────────┐     ┌──────────────────────────┐
+┌───────────────┐         │ Guardar en Firestore    │     │ Eliminar de Firestore    │
+│ Devolver lista│         └───────────┬─────────────┘     └───────────┬──────────────┘
+│ de productos  │                     │                                 │
+└──────┬────────┘                     ▼                                 ▼
+       │                    ┌────────────────────────┐     ┌─────────────────────────┐
+       ▼                    │ Respuesta JSON         │     │ Respuesta 200 OK        │
+┌─────────────────────┐     └────────────────────────┘     └─────────────────────────┘
+│ Respuesta JSON      │
+└─────────────────────┘
+
+# LOGIN (flujo especial)
+┌───────────────────────────────┐
+│     POST /login               │
+└───────────────┬───────────────┘
+                ▼
+      ┌───────────────────────┐
+      │ validarCredenciales() │
+      └──────────┬────────────┘
+                 ▼
+      ┌──────────────────────────┐
+      │ generarJWT(usuario)      │
+      └──────────┬───────────────┘
+                 ▼
+      ┌──────────────────────────┐
+      │ devolver token a Postman │
+      └──────────────────────────┘
+
+# POSTMAN
+- El token se guarda en una variable: {{tokenlogin}}
+- Se usa automáticamente en todos los endpoints protegidos
+
 
 ```
 ---
-
-📝 Notas
-
-- El proyecto utiliza process.argv para leer los comandos desde la terminal.
-- Se implementan validaciones básicas para evitar errores en los parámetros.
-- Podés expandirlo fácilmente para agregar PUT (actualizar productos) u otros métodos de la API.
 
 👩‍💻 Autor
 Sol Garófalo
